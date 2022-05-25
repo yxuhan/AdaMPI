@@ -1,9 +1,9 @@
 # AdaMPI
 
 <figure class="third">
-    <img src="https://yxuhan.github.io/AdaMPI/files/3dp1.gif" width="210" height="140">
-    <img src="https://yxuhan.github.io/AdaMPI/files/3dp2.gif" width="210" height="140">
-    <img src="https://yxuhan.github.io/AdaMPI/files/3dp3.gif" width="210" height="140">
+    <img src="misc/3dp1.gif" width="210" height="140">
+    <img src="misc/3dp2.gif" width="210" height="140">
+    <img src="misc/3dp3.gif" width="210" height="140">
 </figure>
 
 This is a PyTorch implementation of the following paper:
