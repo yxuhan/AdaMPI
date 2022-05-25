@@ -1,5 +1,3 @@
-# Single-View View Synthesis in the Wild with Learned Adaptive Multiplane Images
-
 # AdaMPI
 
 <figure class="third">
