@@ -39,18 +39,18 @@ data_root
     |- yyy.png
     |- ...
 ```
-We provide an example toy dataset in `warpback/toydata`, there are 20 random images from the COCO val set with monocular depth map estimated by DPT. 
+We provide an example toy dataset in `warpback/toydata`, there are ~20 random images from the COCO val set with monocular depth map estimated by DPT. 
 
 ## Code
 ### Stage 1
 * We implement the dataloader for *Stage 1: Inpainting Network Training* in `warpback/stage1_dataset.py`.
 * You can use it to train your own network specialized for inpainting holes caused by view change.
-* 'python warpback/stage1_dataset.py' to see a demo.
+* `python warpback/stage1_dataset.py` to see a demo.
 
 ### Stage 2
 * We implement the dataloader for *Stage 2: View Synthesis Training Pair Generation* in `warpback/stage2_dataset.py`.
 * We provide our pretrained [EdgeConnect](https://github.com/knazeri/edge-connect) model at [here](https://drive.google.com/drive/folders/1FZZ6laPuqEMSfrGvEWYaDZWEPaHvGm6r?usp=sharing). Download and put it to `warpback/ecweight`, then you can directly use this dataloader to train your own view-synthesis method.
-* 'python warpback/stage2_dataset.py' to see a demo.
+* `python warpback/stage2_dataset.py` to see a demo.
 
 ### World Coordinate System
 * **X-axis**: point to **right**
