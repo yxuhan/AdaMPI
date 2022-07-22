@@ -1,0 +1,2 @@
+# Document for *AdaMPI*
+
