@@ -1,5 +1,6 @@
 ## News
 * `2022/7/22` We release the code and the pretrained inpainting model for the *Warp-Back* strategy.
+* `2022/7/` We release the code and the pretrained model for *AdaMPI*.
 
 # AdaMPI
 
@@ -35,3 +36,7 @@ Please cite the following paper if this model helps your research:
         booktitle = {ACM SIGGRAPH},
         year={2022}
     }
+
+## Acknowledgments
+* The code of MPI rendering operation (`utils/mpi/*.py`) is heavily borrowed from [MINE](https://github.com/vincentfung13/MINE), we thank the author for their great effort.
+* We thank [Varun Jampani](https://varunjampani.github.io/) and [Meng-Li Shih](https://shihmengli.github.io/) for helpful suggestions and discussions to evaluate their method. 
