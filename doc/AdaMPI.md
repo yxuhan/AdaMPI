@@ -1,7 +1,7 @@
 # Document for *AdaMPI*
 ## Environment
 ```
-conda create -n warpback python=3.8
+conda create -n adampi python=3.8
 
 # here we use pytorch 1.11.0 and CUDA 11.3 for an example 
 
@@ -24,7 +24,7 @@ pip install \
 
 ## Code
 ### Download Pretrained Model
-Download the pretrained model from [here]() and put it to `./adampiweight`.
+Download the pretrained model from [here](https://drive.google.com/drive/folders/1NfXUlSTHc390YPkKSeddOghzl0W6q7wn?usp=sharing) and put it to `./adampiweight`.
 We release two model, one trained with 32 MPI planes and the other trained with 64 planes.
 
 ### 3D Photo Generation
@@ -45,8 +45,9 @@ python gen_3dphoto.py \
 
 Then, you will see the result like that:
 
-<video src="misc/example_3dphoto.mp4" controls="controls" loop="loop"></video>
+<img src="../misc/example_3dphoto.gif">
 
 ### Note
 * To run our model successfully, make sure both the `--width` and `--height` is a multiple of 128.
 * Our model is trained with resolution of 256 x 384; we empirically find our model can also work well at 512 x 768; we have not test the performance of our model under other resolution.
+* The code related to MPI rendering is heavily borrowed from [MINE](https://github.com/vincentfung13/MINE).
