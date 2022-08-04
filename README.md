@@ -1,6 +1,6 @@
 ## News
 * `2022/7/22` We release the code and the pretrained inpainting model for the *Warp-Back* strategy.
-* `2022/7/` We release the code and the pretrained model for *AdaMPI*.
+* `2022/8/4` We release the code and the pretrained model for *AdaMPI*.
 
 # AdaMPI
 
@@ -27,7 +27,8 @@ This repo contain two parts:
 ## Contact
 If you have any questions, please contact Yuxuan Han (hanyuxuan076@gmail.com).
 
-## Citation
+## License and Citation
+This repository can only be used for personal/research/non-commercial purposes.
 Please cite the following paper if this model helps your research:
 
     @inproceedings{han2022single,
