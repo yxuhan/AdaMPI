@@ -25,7 +25,7 @@ This repo contain two parts:
 * The implementation of the *Warp-Back* strategy, you can use it to generate multi-view training data to train your own view synthesis model (e.g. [SynSin](https://github.com/facebookresearch/synsin), [WorldSheet](https://github.com/facebookresearch/worldsheet)) using only single-view image collections like [COCO](https://github.com/nightrome/cocostuff) dataset. See [Warp-Back.md](doc/Warp-Back.md) for more details.
 
 ## Contact
-If you have any questions, please contact Yuxuan Han (hanyuxuan076@gmail.com).
+If you have any questions, please contact Yuxuan Han (hanyx22@mails.tsinghua.edu.cn).
 
 ## License and Citation
 This repository can only be used for personal/research/non-commercial purposes.
