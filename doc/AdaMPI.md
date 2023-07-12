@@ -29,7 +29,7 @@ We release two model, one trained with 32 MPI planes and the other trained with 
 
 ### 3D Photo Generation
 The input to our AdaMPI is a single in-the-wild image with its monocular depth estimation. 
-You can use the [DPT](https://github.com/isl-org/DPT) model to obtain the estimated depth map.
+You can use the [DPT](https://github.com/isl-org/DPT) model to obtain the estimated depth map. (If `--disp_path` is not given, the script runs "dpt-hybrid-midas" to estimate the depth map by default. You might see the depth map at `debug/midas_depth.png`)
 We provide somne example inputs in `./images`, you can use the image and depth here to test our model. 
 Here is an example to run the code: 
 
