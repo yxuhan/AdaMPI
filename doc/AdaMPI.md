@@ -22,7 +22,7 @@ pip install \
     moviepy==1.0.3
 ```
 
-## Code
+## Inference
 ### Download Pretrained Model
 Download the pretrained model from [here](https://drive.google.com/drive/folders/1NfXUlSTHc390YPkKSeddOghzl0W6q7wn?usp=sharing) and put it to `./adampiweight`.
 We release two model, one trained with 32 MPI planes and the other trained with 64 planes.
@@ -51,3 +51,21 @@ Then, you will see the result like that:
 * To run our model successfully, make sure both the `--width` and `--height` is a multiple of 128.
 * Our model is trained with resolution of 256 x 384; we empirically find our model can also work well at 512 x 768; we have not test the performance of our model under other resolution.
 * The code related to MPI rendering is heavily borrowed from [MINE](https://github.com/vincentfung13/MINE).
+
+## Training
+### Download and Preprocess the Dataset
+Download and extract the COCO dataset:
+```
+sh download_data.sh  # you can also manually download it from https://github.com/nightrome/cocostuff
+```
+Run DPT on the dataset to obtain the monocular depth map for each image in COCO:
+```
+python preprocess_data.py --img_root data/train2017 --save_root data/depth/train2017
+python preprocess_data.py --img_root data/val2017 --save_root data/depth/val2017
+```
+
+### Training
+The following command is tested on a server with `2xRTX3090`. 
+```
+
+```
