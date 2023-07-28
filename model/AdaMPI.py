@@ -56,7 +56,16 @@ class MPIPredictor(nn.Module):
         self, 
         src_imgs, 
         src_depths, 
+        dpn_input_disparity=None,
+        dpn_fmn_pretrain=None,
+        fix_dpn=None,
+        is_train=False,
     ):
+        if is_train:
+            return self.forward_train(
+                src_imgs, src_depths, dpn_input_disparity, dpn_fmn_pretrain, fix_dpn,
+            )
+        
         rgb_low_res = F.interpolate(src_imgs, size=self.low_res_size, mode='bilinear', align_corners=True)
         disp_low_res = F.interpolate(src_depths, size=self.low_res_size, mode='bilinear', align_corners=True)
         
@@ -75,3 +84,36 @@ class MPIPredictor(nn.Module):
         # Decoder forward
         outputs = self.decoder(enc_features, feature_mask)
         return outputs[0], render_disp
+    
+    def forward_train(
+        self,
+        src_imgs,
+        src_depths,
+        dpn_input_disparity,
+        dpn_fmn_pretrain,
+        fix_dpn,
+    ):
+        rgb_low_res = F.interpolate(src_imgs, size=self.low_res_size, mode='bilinear', align_corners=True)
+        disp_low_res = F.interpolate(src_depths, size=self.low_res_size, mode='bilinear', align_corners=True)
+
+        if not fix_dpn:
+            render_disp = self.dpn(dpn_input_disparity, rgb_low_res, disp_low_res)
+        else:
+            with torch.no_grad():
+                render_disp = self.dpn(dpn_input_disparity, rgb_low_res, disp_low_res)
+
+        feature_mask = self.fmn(src_imgs, src_depths, render_disp)
+
+        if dpn_fmn_pretrain:
+            # [b,1,h,w] -> [b,s,4,h,w]
+            pseudo_outputs = [0.5 * torch.ones_like(src_depths).unsqueeze(1).repeat(1, render_disp.shape[1], 4, 1, 1)]
+            return pseudo_outputs, render_disp, feature_mask
+
+        # Encoder forward
+        conv1_out, block1_out, block2_out, block3_out, block4_out = self.encoder(src_imgs, src_depths)
+        enc_features = [conv1_out, block1_out, block2_out, block3_out, block4_out]
+        
+        # Decoder forward
+        outputs = self.decoder(enc_features, feature_mask)
+
+        return outputs, render_disp, feature_mask

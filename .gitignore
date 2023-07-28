@@ -1,8 +1,10 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+.vscode/*
 
 debug/*
 warpback/ecweight
 adampiweight/*
 data/*
+workspace/*

@@ -62,3 +62,5 @@ To make the code simple and easy to read, we omit some engineering steps which c
 * Disparity Preprocessing: You can use some kernel to filter the monocular depth estimation to reduce artifacts around depth discontinuities. See [here](https://github.com/nianticlabs/stereo-from-mono/blob/ea7b704e5b873baf4eefaf0a23875e4bdfa4927c/datasets/warp_dataset.py#L91) for more details.
 * Image Size Preprocessing: In the code we simply resize all the image to a fix size, e.g. 256 x 384; a better way is to crop a random patch with the same aspect ratio as the fix size, and then resize this patch to the fix size.
 * Mask Preprocessing: To avoid artifacts on the image-warping mask, you can use some morphological operation to filter it before send it to the inpainting network.
+
+(0727 update) The complete dataset is released at `warpback/coco_dataset.py`.

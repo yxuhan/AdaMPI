@@ -11,6 +11,9 @@ pip install https://download.pytorch.org/whl/cu113/torch-1.11.0%2Bcu113-cp38-cp3
 # install torchvision
 pip install https://download.pytorch.org/whl/cu113/torchvision-0.12.0%2Bcu113-cp38-cp38-linux_x86_64.whl
 
+# install pytorch3d
+conda install https://anaconda.org/pytorch3d/pytorch3d/0.6.2/download/linux-64/pytorch3d-0.6.2-py38_cu113_pyt1100.tar.bz2
+
 # install other libs
 pip install \
     numpy==1.19 \
@@ -19,7 +22,15 @@ pip install \
     pillow==9.0.1 \
     opencv-python==4.4.0.40 \
     tqdm==4.64.0 \
-    moviepy==1.0.3
+    moviepy==1.0.3 \
+    pyyaml \
+    matplotlib \
+    scikit-learn \
+    lpips \
+    kornia \
+    focal_frequency_loss \
+    tensorboard \
+    transformers
 ```
 
 ## Inference
@@ -65,7 +76,22 @@ python preprocess_data.py --img_root data/val2017 --save_root data/depth/val2017
 ```
 
 ### Training
-The following command is tested on a server with `2xRTX3090`. 
+Before training, change this parameters in `params_coco.yaml` to your data root:
+```
+data.training_set_path: /root/autodl-tmp/adampi-data/train2017
+data.val_set_path: /root/autodl-tmp/adampi-data/val2017
+data.training_depth_path: /root/autodl-tmp/adampi-data/depth/train2017
+data.val_depth_path: /root/autodl-tmp/adampi-data/depth/val2017
+
+if you directly follow our data processing scripts, data.training_set_path should be set to data/train2017.
 ```
 
+The following command is tested on a server with `2xRTX3090`.
 ```
+ # for 16 plane training
+ # for 32 plane training
+```
+
+Note: 
+* You can tune the `data.per_gpu_batch_size` and `training.step_iter` to fit your GPU memory. We recommand you to ensure the total batchsize (i.e. `data.per_gpu_batch_size x num_gpus x training.step_iter`) >= 12 to ensure good performance. 
+* We support gradient accumulation by the `training.step_iter` parameter. So when you change the `training.step_iter`, you should also change the training iters. 

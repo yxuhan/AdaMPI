@@ -1,0 +1,25 @@
+local_workspace: workspace/adampi_16p
+
+data.rand_trans: true
+data.trans_range: {'x':0.2, 'y':0., 'z':0., 'a':-1, 'b':-1, 'c':-1}  
+data.ec_weight_dir: /root/autodl-tmp/adampi-data/ecweight  # 如果不是v2，需要填写图像修复模型的权重地址
+data.img_h: 256
+data.img_w: 384
+data.name: coco
+data.per_gpu_batch_size: 4
+data.training_set_path: /root/autodl-tmp/adampi-data/train2017
+data.val_set_path: /root/autodl-tmp/adampi-data/val2017
+data.training_depth_path: /root/autodl-tmp/adampi-data/depth/train2017
+data.val_depth_path: /root/autodl-tmp/adampi-data/depth/val2017
+
+lr.backbone_lr: 0.0001
+
+lr.decay_gamma: 0.1
+lr.decay_steps: 8000,12000,16000
+lr.weight_decay: 4.0e-05
+
+mpi.disparity_end: 0.001
+mpi.disparity_start: 1.0
+
+training.epochs: 4 
+training.eval_interval: 5000

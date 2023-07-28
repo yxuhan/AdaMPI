@@ -307,6 +307,47 @@ def rot_from_axisangle(vec):
     return rot
 
 
+#######################
+# some helper dataset preprocess functions
+#######################
+def bleed(x, mask):
+    B, C, H, W = x.shape
+    kernel = torch.tensor([[0.5, 1., 0.], [1., 1., 1.], [0.5, 1., 0.5]]).view(1, 1, 3, 3).to(x)
+    rmask = 1. - mask
+    return rmask * x  + mask * F.conv2d((x * rmask).view(B * C, 1, H, W), kernel, padding=1).view(B, C, H, W) / (F.conv2d(rmask, kernel, padding=1) + 1e-5)
+
+
+def shrink_mask(mask):
+    kernel = torch.tensor([[0.5, 1., 0.], [1., 1., 1.], [0.5, 1., 0.5]]).view(1, 1, 3, 3).to(mask)
+    return (F.conv2d(mask, kernel, padding=1) > kernel.sum() - 1e-3).float()
+
+
+def seamless_clone(source, target, mask):
+    B, C, H, W = source.shape
+    source, target = source.contiguous(), target.contiguous()
+    laplacian_kernel = torch.tensor([[0., -0.25, 0], [-0.25, 1., -0.25], [0., -0.25, 0.]]).view(1, 1, 3, 3).to(source)
+    coef_kernel = torch.tensor([[0., 0.25, 0], [0.25, 0., 0.25], [0., 0.25, 0.]]).view(1, 1, 3, 3).to(source)
+
+    mixed = None
+    for scale in range(3, 0, -1):
+        H_, W_ = H // scale, W // scale
+        target_ = F.interpolate(target, size=(H_, W_))
+        mask_ = F.interpolate(mask, size=(H_, W_))
+        source_ = F.interpolate(source, size=(H_, W_))
+        target_ = bleed(target_, mask_)
+        mask_ = shrink_mask(mask_)
+
+        source_laplacian = F.conv2d(source_.view(B * C, 1, H_, W_), laplacian_kernel, padding=1).view(B, C, H_, W_)
+        if mixed is None:
+            mixed =  target_ * (1. - mask_) + source_ * mask_
+        else:
+            mixed = target_ * (1. - mask_) + F.interpolate(mixed, size=(H_, W_)) * mask_
+        for _ in range(4 if scale > 1 else 8):
+            mixed = mixed * (1. - mask_) + (F.conv2d(mixed.view(B * C, 1, H_, W_), coef_kernel, padding=1).view(B, C, H_, W_) + source_laplacian) * mask_
+
+    return mixed
+
+
 if __name__ == "__main__":
     device = "cuda"
     render_save_path = "debug/render_rgb.png"

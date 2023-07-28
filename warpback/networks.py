@@ -10,17 +10,17 @@ import os
 
 def get_edge_connect(weight_dir):
     inpaint_model = InpaintGenerator()
-    inpaint_model_weight = torch.load(os.path.join(weight_dir, "InpaintingModel_gen.pth"))
+    inpaint_model_weight = torch.load(os.path.join(weight_dir, "InpaintingModel_gen.pth"), map_location="cpu")
     inpaint_model.load_state_dict(inpaint_model_weight["generator"])
     inpaint_model.eval()
 
     edge_model = EdgeGenerator()
-    edge_model_weight = torch.load(os.path.join(weight_dir, "EdgeModel_gen.pth"))
+    edge_model_weight = torch.load(os.path.join(weight_dir, "EdgeModel_gen.pth"), map_location="cpu")
     edge_model.load_state_dict(edge_model_weight["generator"])
     edge_model.eval()
 
     disp_model = InpaintGenerator(in_channels=2, out_channels=1)
-    disp_model_weight = torch.load(os.path.join(weight_dir, "InpaintingModel_disp.pth"))
+    disp_model_weight = torch.load(os.path.join(weight_dir, "InpaintingModel_disp.pth"), map_location="cpu")
     disp_model.load_state_dict(disp_model_weight["generator"])
     disp_model.eval()
     return edge_model, inpaint_model, disp_model
