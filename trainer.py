@@ -3,16 +3,18 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import lpips
+from sklearn.cluster import KMeans
 import torch
 from torchvision.utils import save_image
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import torch.distributed as dist
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from utils.mpi import mpi_rendering
 from utils.mpi.homography_sampler import HomographySample
-from utils.utils import AverageMeter, restore_model
+from utils.utils import AverageMeter
 from model.utils import edge_aware_loss_v2, masked_psnr, psnr, SSIM
 from model.losses import VGGPerceptualLoss, rank_loss_fn, assign_loss
 
@@ -30,6 +32,33 @@ def _uniform_strategy_fn(near, far, num, device, bs):
     e.g. near=1, far=0, num=3, return [0.75, 0.50, 0.25]
     '''
     return torch.linspace(near, far, num + 2)[1:-1].to(device).unsqueeze(0).repeat(bs, 1)
+
+
+def _heuristic_disparity(near, far, num, device, disparity):
+    bs = disparity.shape[0]
+    nbins = 256
+    _min, _max = far, near
+    hist = np.zeros((bs, nbins))
+    disparity = disparity.cpu().numpy()
+    for i in range(bs):
+        _hist, _ = np.histogram(disparity[i, 0], bins=nbins, range=(_min, _max), density=True)
+        hist[i] = _hist
+    # Evaluate best MPI disparities by KMeans
+    mpi_disp = []
+    uni_disp = _uniform_strategy_fn(near, far, num, device, bs)
+    # try:
+    for i in range(bs):
+        kmeans = KMeans(n_clusters=num, n_init=4).fit(
+            torch.linspace(_min + (_max - _min)/512, _max - (_max - _min)/512, 256).numpy()[:, None], 
+            sample_weight=hist[i],
+        )
+        mpi_disp.append(torch.from_numpy(kmeans.cluster_centers_).squeeze(-1))
+    mpi_disp, _ = torch.sort(torch.stack(mpi_disp), dim=-1, descending=True)
+    mpi_disp = mpi_disp.to(device)
+    heu_disp = 0.3 * mpi_disp + 0.7 * uni_disp
+    # except:  # when KMeans sometimes failed
+    #     heu_disp = uni_disp
+    return heu_disp
 
 
 class SynthesisTask(nn.Module):
@@ -53,9 +82,18 @@ class SynthesisTask(nn.Module):
         
         # Init optimizer
         params = [
-            {"params": self.mpi_predict_network.parameters(), "lr": config["lr.backbone_lr"]},
+            {"params": self.mpi_predict_network.encoder.parameters()},
+            {"params": self.mpi_predict_network.decoder.parameters()},
+            {"params": self.mpi_predict_network.fmn.parameters()},
         ]
-        self.optimizer = torch.optim.Adam(params, weight_decay=config["lr.weight_decay"])
+        self.optimizer = torch.optim.Adam(
+            params, weight_decay=config["lr.weight_decay"], lr=config["lr.backbone_lr"],
+        )
+        self.optimizer_dpn = torch.optim.Adam(
+            self.mpi_predict_network.dpn.parameters(), 
+            weight_decay=config["lr.weight_decay"],
+            lr=config["lr.backbone_lr"],
+        )
 
         self.current_epoch = 0
         self.global_step = 0
@@ -72,29 +110,22 @@ class SynthesisTask(nn.Module):
         from focal_frequency_loss import FocalFrequencyLoss as FFL
         self.ffl = FFL(loss_weight=1.0, alpha=config.get("training.ffl_alpha", 1))  # initialize nn.Module class
 
-        # Restore model
-        model_path = config["training.pretrained_checkpoint_path"]
-        if model_path is None:
-            print("Not using pre-trained model...")
-        else:
-            print("Load pre-trained model from", model_path)
-            dist.barrier()
-            restore_model(model_path, 
-                        self.mpi_predict_network,
-                        self.optimizer, 
-                        logger=None,
-                        load_part_list=config.get("training.load_part_list", None))
-            dist.barrier()
-
         # to DDP & train
         self.mpi_predict_network = nn.SyncBatchNorm.convert_sync_batchnorm(self.mpi_predict_network)
         self.mpi_predict_network = DDP(self.mpi_predict_network, device_ids=[rank], broadcast_buffers=True, find_unused_parameters=True)
         self.mpi_predict_network.train()
         
         # LR scheduling
-        self.lr_scheduler = optim.lr_scheduler.MultiStepLR(self.optimizer,
-                                                            config["lr.decay_steps"],
-                                                            gamma=config["lr.decay_gamma"])
+        self.lr_scheduler = optim.lr_scheduler.MultiStepLR(
+            self.optimizer,
+            config["lr.decay_steps"],
+            gamma=config["lr.decay_gamma"]
+        )
+        self.lr_scheduler_dpn = optim.lr_scheduler.MultiStepLR(
+            self.optimizer_dpn,
+            config["lr.decay_steps"],
+            gamma=config["lr.decay_gamma"]
+        )
 
         H_tgt, W_tgt = config["data.img_h"], config["data.img_w"]
         self.homography_sampler_list = \
@@ -131,6 +162,7 @@ class SynthesisTask(nn.Module):
             "loss_rank": AverageMeter("train_rank_loss"),
             "loss_assign": AverageMeter("train_assign_loss"),
             "loss_percept": AverageMeter("train_percept_loss"),
+            "loss_imitate": AverageMeter("train_imitate_loss"),
         }
         self.val_losses = {
             "loss_rgb_src": AverageMeter("val_loss_rgb_src"),
@@ -148,6 +180,7 @@ class SynthesisTask(nn.Module):
             "loss_rank": AverageMeter("val_rank_loss"),
             "loss_assign": AverageMeter("val_assign_loss"),
             "loss_percept": AverageMeter("val_percept_loss"), 
+            "loss_imitate": AverageMeter("val_imitate_loss"), 
         }
         self.loss_for_multi_scale = [
             "loss_ssim_tgt", "loss_occ_ssim_tgt", "loss_rgb_tgt", "loss_occ_l1_tgt", "loss_ffl_tgt",
@@ -368,6 +401,11 @@ class SynthesisTask(nn.Module):
 
         loss_assign = assign_loss(feat_mask, rendered_mpi_disp, self.src_depths)
         loss_rank = rank_loss_fn(dpn_output_disparity, start=self.config["mpi.disparity_start"], end=self.config["mpi.disparity_end"])
+        
+        near, far = self.config["mpi.disparity_start"], self.config["mpi.disparity_end"]
+        plane_num = self.config["mpi.num_bins_coarse"]
+        heu_mpi_disp = _heuristic_disparity(near, 0, plane_num, self.device, self.src_depths)
+        loss_imitate = F.l1_loss(rendered_mpi_disp, heu_mpi_disp)
 
         # compute loss for all the scales
         scale_list = list(range(len(endpoints["mpi_all_src_list"])))
@@ -398,6 +436,10 @@ class SynthesisTask(nn.Module):
         # assign loss
         loss_dict["loss"] += loss_assign * self.config.get("training.assign_loss_weight", 1)
         loss_dict["loss_assign"] = loss_assign
+
+        # imitation loss
+        loss_dict["loss"] += loss_imitate * self.config.get("training.imit_loss_weight", 1)
+        loss_dict["loss_imitate"] = loss_imitate
 
         # --------------------
         # Percept. Loss
@@ -443,6 +485,7 @@ class SynthesisTask(nn.Module):
             fix_dpn = True if (min_iter < self.global_step and self.global_step < max_iter) else False
         else:
             fix_dpn = False
+        self.fix_dpn = fix_dpn
 
         # Extract MPI and adjusted mpi depth from network
         mpi_all_src_list, render_disparity, feat_mask = self.mpi_predict_network(
@@ -555,59 +598,7 @@ class SynthesisTask(nn.Module):
                             self.tb_writer.add_scalar(key + "/val-" + dataset_name, value.avg, self.global_step)
         self.is_val = False
         self.mpi_predict_network.train()
-    
-    def save_batch_image(self, imgs, dir_name, img_names):
-        '''
-        imgs: [b,3,h,w]
-        '''
-        b = imgs.shape[0]
-        for i in range(b):
-            save_image(imgs[i], os.path.join(dir_name, "%s.png" % img_names[i]))
-
-    def run_eval_only_image(self, val_data_loader_dict):
-        if self.rank == 0:
-            print("Start running evaluation on validation set...")
-        self.mpi_predict_network.eval()
-        self.is_val = True
-        with torch.no_grad():
-            for dataset_name, val_data_loader in val_data_loader_dict.items():
-                if self.rank == 0:
-                    print(f"Validation on {dataset_name}")
-                vis_dir = os.path.join(self.config['local_workspace'], dataset_name)
-                os.makedirs(vis_dir, exist_ok=True)
-                src_dir = os.path.join(vis_dir, "src")
-                tgt_dir = os.path.join(vis_dir, "tgt")
-                render_dir = os.path.join(vis_dir, "render")
-                os.makedirs(src_dir, exist_ok=True)
-                os.makedirs(tgt_dir, exist_ok=True)
-                os.makedirs(render_dir, exist_ok=True)
-
-                # clear train losses average meter
-                for val_loss_item in self.val_losses.values():
-                    val_loss_item.reset()
-                
-                record_scores = []
-                for i_batch, items in enumerate(val_data_loader):
-                    if self.rank == 0:
-                        print("    Eval progress: {}/{}".format(i_batch + 1, len(val_data_loader)))
-
-                    self.set_data(items)
-                    loss_dict, visualization_dict, mpi = self.loss_fcn(is_val=True)
-                    
-                    render = visualization_dict["tgt_imgs_syn"]
-                    self.save_batch_image(render, render_dir, self.item_names)  # crop 5
-                    self.save_batch_image(self.src_imgs, src_dir, self.item_names)
-                    self.save_batch_image(self.tgt_imgs, tgt_dir, self.item_names)
-
-                if self.rank == 0:
-                    # log evaluation result
-                    print("Evaluation on %s finished, average losses: " % dataset_name)
-                    for v in self.val_losses.values():
-                        print("    {}".format(v))
-
-        self.is_val = False
-        self.mpi_predict_network.train()
-    
+        
     def log_val(self, loss_dict):
         B = self.src_imgs.size(0)
         # loss logging
@@ -674,6 +665,7 @@ class SynthesisTask(nn.Module):
         for key, value in self.train_losses.items():
             self.tb_writer.add_scalar(key + "/train", loss_dict[key].item(), global_step)
             value.update(loss_dict[key].item())
+        self.tb_writer.add_scalar("fix_dpn", self.fix_dpn, global_step)
 
     def train_epoch(self, train_data_loader, val_data_loader_dict, epoch):
         
@@ -692,6 +684,11 @@ class SynthesisTask(nn.Module):
         self.optimizer.zero_grad()
         # iterate over the dataloader
         for step, items in enumerate(train_data_loader):
+            
+            if self.global_step > self.config["training.global_steps"]:
+                print("training complete ...")
+                exit()
+
             step += 1
 
             self.global_step += 1
@@ -703,9 +700,13 @@ class SynthesisTask(nn.Module):
             loss.backward()
             if self.global_step % self.config["training.step_iter"] == 0:
                 self.optimizer.step()
+                if not self.fix_dpn:
+                    self.optimizer_dpn.step()
                 self.lr_scheduler.step()
+                self.lr_scheduler_dpn.step()
                 self.optimizer.zero_grad()
-            
+                self.optimizer_dpn.zero_grad()
+
             # logging
             if step > 0 and step % 10 == 0 and self.rank == 0:
                 self.log_training(self.current_epoch,

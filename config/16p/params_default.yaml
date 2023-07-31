@@ -1,17 +1,20 @@
+local_workspace: workspace/adampi_16p
 # MPI config
 mpi.num_bins_coarse: 16
 mpi.use_alpha: false
 training.src_rgb_blending: true
-training.step_iter: 3
+training.step_iter: 1
 training.dpn_fmn_iter: 4000
-training.dpn_fix_iter: [4000, 100000]  # for stable training
+training.dpn_fix_iter: [4000, 12000]
+training.global_steps: 16000
 
 # strategy
-disp.dpn_input_strategy: uniform
+disp.dpn_input_strategy: uniform  # [uniform, randbins, random, heu-randbins, heu-uniform]
 
 # loss config
 training.rank_loss_weight: 100
 training.assign_loss_weight: 10
+training.imit_loss_weight: 10
 training.occ_color_loss_weight: 5
 training.disp_loss_weight: 1
 training.occ_disp_loss_weight: 5

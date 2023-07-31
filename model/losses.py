@@ -54,4 +54,4 @@ def assign_loss(feat_mask, mpi_disp, depth):
     depth: [b,1,h,w]
     '''
     dist = torch.abs(feat_mask * (depth - mpi_disp[..., None, None]))  # [b,s,h,w]
-    return torch.sum(torch.mean(dist, (0, 2, 3)))
+    return torch.mean(dist)

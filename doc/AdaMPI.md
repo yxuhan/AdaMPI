@@ -75,23 +75,29 @@ python preprocess_data.py --img_root data/train2017 --save_root data/depth/train
 python preprocess_data.py --img_root data/val2017 --save_root data/depth/val2017
 ```
 
+We provide our pretrained [EdgeConnect](https://github.com/knazeri/edge-connect) model at [here](https://drive.google.com/drive/folders/1FZZ6laPuqEMSfrGvEWYaDZWEPaHvGm6r?usp=sharing). Download and put it to `warpback/ecweight`.
+
 ### Training
 Before training, change this parameters in `params_coco.yaml` to your data root:
 ```
+if you directly follow our data processing steps, data.ec_weight_dir should be set to warpback/ecweight
+data.ec_weight_dir: /root/autodl-tmp/adampi-data/ecweight
+
+if you directly follow our data processing scripts, data.training_set_path should be set to data/train2017.
 data.training_set_path: /root/autodl-tmp/adampi-data/train2017
 data.val_set_path: /root/autodl-tmp/adampi-data/val2017
 data.training_depth_path: /root/autodl-tmp/adampi-data/depth/train2017
 data.val_depth_path: /root/autodl-tmp/adampi-data/depth/val2017
 
-if you directly follow our data processing scripts, data.training_set_path should be set to data/train2017.
 ```
 
 The following command is tested on a server with `2xRTX3090`.
 ```
- # for 16 plane training
- # for 32 plane training
+python train.py --config_path config/16p --gpus 0,1  # for 16 plane training
+python train.py --config_path config/32p --gpus 0,1  # for 32 plane training
 ```
 
 Note: 
-* You can tune the `data.per_gpu_batch_size` and `training.step_iter` to fit your GPU memory. We recommand you to ensure the total batchsize (i.e. `data.per_gpu_batch_size x num_gpus x training.step_iter`) >= 12 to ensure good performance. 
+* You can tune the `data.per_gpu_batch_size` and `training.step_iter` to fit your GPU memory. We recommand you to ensure the total batchsize (i.e. `data.per_gpu_batch_size x num_gpus x training.step_iter`) >= 8 to ensure good performance. 
 * We support gradient accumulation by the `training.step_iter` parameter. So when you change the `training.step_iter`, you should also change the training iters. 
+* To improve training stability of the Plane Adjustment Network, in the released version we add `loss_imitate` to constrain the output of the PAN to be similar to a simple heuristic depth adjustment strategy.

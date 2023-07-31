@@ -2,9 +2,6 @@ import os
 import sys
 import argparse
 import yaml
-import shutil
-import numpy as np
-import glob
 import torch
 from torch.utils.data import DataLoader
 import torch.distributed as dist

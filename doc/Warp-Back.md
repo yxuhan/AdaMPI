@@ -63,4 +63,4 @@ To make the code simple and easy to read, we omit some engineering steps which c
 * Image Size Preprocessing: In the code we simply resize all the image to a fix size, e.g. 256 x 384; a better way is to crop a random patch with the same aspect ratio as the fix size, and then resize this patch to the fix size.
 * Mask Preprocessing: To avoid artifacts on the image-warping mask, you can use some morphological operation to filter it before send it to the inpainting network.
 
-(0727 update) The complete dataset is released at `warpback/coco_dataset.py`.
+**(0731 Update) The complete dataset is released at `warpback/coco_dataset.py`. Checkout it!**

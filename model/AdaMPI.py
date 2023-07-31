@@ -99,6 +99,7 @@ class MPIPredictor(nn.Module):
         if not fix_dpn:
             render_disp = self.dpn(dpn_input_disparity, rgb_low_res, disp_low_res)
         else:
+            self.dpn.eval()
             with torch.no_grad():
                 render_disp = self.dpn(dpn_input_disparity, rgb_low_res, disp_low_res)
 

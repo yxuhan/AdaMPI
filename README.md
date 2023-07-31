@@ -1,5 +1,5 @@
 ## News
-* `2023/7/27` We release the complete training code for our method on the COCO dataset!
+* `2023/7/31` We release the complete training code for our method on the COCO dataset!
 * `2022/8/4` We release the code and the pretrained model for *AdaMPI*. Use it to create 3D photo from single in-the-wild 2D images!
 * `2022/7/22` We release the code and the pretrained inpainting model for the *Warp-Back* strategy.
 
